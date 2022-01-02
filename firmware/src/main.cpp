@@ -15,81 +15,78 @@
   MCU:
 
   PERIPHERALS:
-
-
+    SX1509 port expander - 8 LEDs and 8 toggle switches
 
   TODO:
 
 
-
 */
 
-
-
 #include <Arduino.h>
-#include <TM1637Display.h> // https://github.com/avishorp/TM1637
-#include "SPI.h"
-#include "Adafruit_GFX.h"
-#include "Adafruit_ILI9341.h"
-#include <Adafruit_STMPE610.h>
+#include <TM1637Display.h> 
 #include <Wire.h>
 #include <SparkFunSX1509.h>
+#include "SPI.h"
+#include <TFT_eSPI.h>
 
-// Arduino Nano Pins
+
 #define PIN_TM1637_0_CLK 2
 #define PIN_TM1637_0_DIO 3
 #define PIN_TM1637_1_CLK 4
 #define PIN_TM1637_1_DIO 5
 #define PIN_BUZZER 6
-#define PIN_BUTTON_CAPTURE 7
-#define STMPE_CS 8
-#define TFT_DC 9
-#define TFT_CS 10
+//#define PIN_BUTTON_CAPTURE 7
+/*
+#define PIN_LED_BUILTIN 13
 #define PIN_BUTTON_NEW_GAME A0
+*/
 
-// SX1509 Pins
-#define PIN_SX1509_LED_0 8
-#define PIN_SX1509_LED_1 9
-#define PIN_SX1509_LED_2 10
-#define PIN_SX1509_LED_3 11
-#define PIN_SX1509_LED_4 12
-#define PIN_SX1509_LED_5 13
-#define PIN_SX1509_LED_6 14
-#define PIN_SX1509_LED_7 15
-#define PIN_SX1509_TOGGLE_0 0
-#define PIN_SX1509_TOGGLE_1 1
-#define PIN_SX1509_TOGGLE_2 2
-#define PIN_SX1509_TOGGLE_3 3
-#define PIN_SX1509_TOGGLE_4 4
-#define PIN_SX1509_TOGGLE_5 5
-#define PIN_SX1509_TOGGLE_6 6
-#define PIN_SX1509_TOGGLE_7 7
+// SX1509
+SX1509 sx1509;
+const byte SX1509_I2C_ADDRESS = 0x3E;
+const int pins_sx1509_led[] = {0, 1, 2, 3, 4, 5, 6, 7};
+const int pins_sx1509_toggle[] = {8, 9, 10, 11, 12, 13, 14, 15};
 
 
-const byte SX1509_I2C_ADDRESS = 0x3E;  // SX1509 I2C address
-SX1509 sx1509; 
+TFT_eSPI tft = TFT_eSPI();
 
-Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
-Adafruit_STMPE610 ts = Adafruit_STMPE610(STMPE_CS);
+//TM1637Display display0(PIN_TM1637_0_CLK, PIN_TM1637_0_DIO);
+//TM1637Display display1(PIN_TM1637_1_CLK, PIN_TM1637_1_DIO);
 
-TM1637Display display0(PIN_TM1637_0_CLK, PIN_TM1637_0_DIO);
-TM1637Display display1(PIN_TM1637_1_CLK, PIN_TM1637_1_DIO);
-
-
-
-
-
-void setup() 
+void setup()
 {
-  if (!sx1509.begin(SX1509_I2C_ADDRESS))
+  delay(1000);
+  Serial.begin(115200);
+  Serial.println("Binary Challenge");
+
+  tft.init();
+  tft.fillScreen(TFT_BLACK);
+  tft.setCursor(10, 20);
+  tft.setTextColor(TFT_BLUE);
+  tft.setTextSize(2);
+  tft.println("Binary Challenge!");
+
+  Wire.begin();
+
+  if (sx1509.begin(SX1509_I2C_ADDRESS) == false)
   {
-    Serial.println("Failed to communicate.");
-    while (1) ;
+    Serial.println("Failed to communicate. Check wiring and address of SX1509.");
+  }
+
+  for (int i = 0; i < 8; i++)
+  {
+    sx1509.pinMode(pins_sx1509_led[i], ANALOG_OUTPUT);
+    sx1509.pinMode(pins_sx1509_toggle[i], INPUT);
+    sx1509.pinMode(pins_sx1509_toggle[i], INPUT_PULLUP);
   }
 }
 
-void loop() 
+void loop()
 {
-  
-  
+
+  for (int i = 0; i < 8; i++)
+  {
+    int brightness = sx1509.digitalRead(pins_sx1509_toggle[i]) == LOW ? 127 : 0;
+    sx1509.analogWrite(pins_sx1509_led[i], brightness);
+  }
 }
