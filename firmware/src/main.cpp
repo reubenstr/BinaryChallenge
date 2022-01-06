@@ -36,7 +36,7 @@
 #define PIN_TM1637_1_DIO 17
 #define PIN_BUZZER 12
 #define PIN_BUTTON_CAPTURE 15
-#define PIN_BUTTON_NEW_GAME 35
+#define PIN_BUTTON_NEW_GAME 27
 #define PIN_TOGGLE_DEC_HEX 13
 
 // SX1509
@@ -55,6 +55,7 @@ byte toggleValues;
 bool showDecValues;
 int turn;
 const int numTurns = 10;
+float scoreTotal;
 float score;
 
 enum class Difficulty
@@ -71,7 +72,9 @@ static const char *difficultyText[6] = {"Easy", "Medium", "Hard"};
 enum class State
 {
   Home,
+  SetDifficulty,
   Play,
+  ResetToggles,
   HighScores
 };
 
@@ -81,6 +84,11 @@ void NewGame()
 {
   turn = 0;
   score = 0;
+
+  state = State::Play; // TODO: go to diff set
+
+  tone(PIN_BUZZER, NOTE_C5, 125, 0);
+  noTone(PIN_BUZZER, 0);
 }
 
 void Capture()
@@ -89,10 +97,19 @@ void Capture()
   {
     // end game
   }
+  else
+  {
+    tone(PIN_BUZZER, NOTE_C4, 125, 0);
+    noTone(PIN_BUZZER, 0);
+
+    state = State::ResetToggles;
+  }
 }
 
 void ProcessScreen(bool forceUpdate = false)
 {
+
+  char buf[30];
 
   if (state == State::Home)
   {
@@ -101,7 +118,6 @@ void ProcessScreen(bool forceUpdate = false)
   {
 
     int target = 165;
-    char buf[30];
 
     sprintf(buf, "Difficulty: %s", difficultyText[int(difficulty)]);
     tft.setFreeFont(&FreeSans9pt7b);
@@ -138,6 +154,22 @@ void ProcessScreen(bool forceUpdate = false)
     tft.setTextDatum(TC_DATUM);
     tft.setTextColor(TFT_RED, TFT_BLACK);
     tft.drawString(buf, 160, 110);
+  }
+  else if (state == State::ResetToggles)
+  {
+    sprintf(buf, "Score %4f", score);
+    tft.setFreeFont(&FreeSans12pt7b);
+    tft.setTextSize(2);
+    tft.setTextDatum(TC_DATUM);
+    tft.setTextColor(TFT_RED, TFT_BLACK);
+    tft.drawString(buf, 160, 120);
+
+    tft.setFreeFont(&FreeSans12pt7b);
+    tft.setTextSize(1);
+    tft.setTextDatum(TC_DATUM);
+    tft.setTextColor(TFT_RED, TFT_BLACK);
+    tft.drawString("(Set toggles to zero)", 160, 180);
+    //tft.drawString("to Zero.", 160, 130);
   }
   else if (state == State::HighScores)
   {
@@ -180,7 +212,18 @@ void ProcessTogglesAndLEDs()
     bool toggleState = !sx1509.digitalRead(pins_sx1509_toggle[n]);
     bitWrite(toggleValues, n, toggleState);
     int brightness = toggleState == HIGH ? ledMaxBrightnessPWMValue : 0;
-    sx1509.analogWrite(pins_sx1509_led[n], brightness);
+
+    if (state == State::Play)
+    {
+      sx1509.analogWrite(pins_sx1509_led[n], brightness);
+    }
+    else if (state == State::ResetToggles)
+    {
+      if (toggleState)
+        sx1509.blink(pins_sx1509_led[n], 750, 50, ledMaxBrightnessPWMValue, 0);
+      else
+        sx1509.analogWrite(pins_sx1509_led[n], 0);
+    }
   }
 }
 
@@ -250,10 +293,6 @@ void setup()
 
 void loop()
 {
-
-  //tone(PIN_BUZZER, NOTE_C4, 500, 0);
-  //noTone(PIN_BUZZER, 0);
-  //delay(2000);
 
   state = State::Play;
 
