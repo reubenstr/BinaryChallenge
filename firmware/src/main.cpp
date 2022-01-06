@@ -13,6 +13,7 @@
     www.metaphasiclabs.com
 
   MCU:
+    ESP32 - 
 
   PERIPHERALS:
     SX1509 port expander - 8 LEDs and 8 toggle switches
@@ -29,6 +30,7 @@
 #include "SPI.h"
 #include <TFT_eSPI.h>
 #include <Tone32.h>
+#include <main.h>
 
 #define PIN_TM1637_0_CLK 16
 #define PIN_TM1637_0_DIO 4
@@ -58,50 +60,87 @@ const int numTurns = 10;
 float scoreTotal;
 float score;
 
-enum class Difficulty
-{
-  Easy,
-  Medium,
-  Hard
-};
-
 Difficulty difficulty;
-
-static const char *difficultyText[6] = {"Easy", "Medium", "Hard"};
-
-enum class State
-{
-  Home,
-  SetDifficulty,
-  Play,
-  ResetToggles,
-  HighScores
-};
-
 State state = State::Home;
+
+unsigned long timeLeftToCapture;
+const int timeMSAllowedToCapture = 5000; 
+
+void PlayTone(Tone t)
+{
+  if (t == Tone::NewGame)
+  {
+    tone(PIN_BUZZER, NOTE_C5, 125, 0);
+    noTone(PIN_BUZZER, 0);
+  }
+  else if (t == Tone::Capture)
+  {
+    tone(PIN_BUZZER, NOTE_C5, 125, 0);
+    tone(PIN_BUZZER, NOTE_C6, 250, 0);
+  }
+  else if (t == Tone::TogglesReset)
+  {
+    tone(PIN_BUZZER, NOTE_C5, 125, 0);
+    tone(PIN_BUZZER, NOTE_CS5, 125, 0);
+    tone(PIN_BUZZER, NOTE_D5, 125, 0);
+  }
+  else if (t == Tone::OutofTime)
+  {
+    tone(PIN_BUZZER, NOTE_C5, 125, 0);
+    tone(PIN_BUZZER, NOTE_C4, 1000, 0);
+  }
+  else if (t == Tone::EndOfGame)
+  {
+    int steps = 10;
+    for (int i = 0; i < steps; i++)
+    {
+      tone(PIN_BUZZER, (NOTE_C7 - NOTE_C6) / steps * i, 50, 0);
+    }
+    tone(PIN_BUZZER, (NOTE_C7 - NOTE_C6) / steps * steps, 500, 0);
+  }
+
+  noTone(PIN_BUZZER, 0);
+}
+
+bool ProcessStates()
+{
+
+  if (state == State::ResetToggles)
+  {
+    if (toggleValues == 0)
+    {
+      PlayTone(Tone::TogglesReset);
+      state = State::Play;
+      return true;
+    }
+  }
+  return false;
+}
+
+byte GenerateTarget()
+{
+  if (difficulty == Difficulty::Easy)
+  {
+  }
+}
 
 void NewGame()
 {
   turn = 0;
   score = 0;
-
+  PlayTone(Tone::NewGame);
   state = State::Play; // TODO: go to diff set
-
-  tone(PIN_BUZZER, NOTE_C5, 125, 0);
-  noTone(PIN_BUZZER, 0);
 }
 
 void Capture()
 {
   if (++turn > numTurns)
   {
-    // end game
+    PlayTone(Tone::EndOfGame);
   }
   else
   {
-    tone(PIN_BUZZER, NOTE_C4, 125, 0);
-    noTone(PIN_BUZZER, 0);
-
+    PlayTone(Tone::Capture);
     state = State::ResetToggles;
   }
 }
@@ -294,9 +333,11 @@ void setup()
 void loop()
 {
 
-  state = State::Play;
+  bool activityFlag = false;
 
-  bool activityFlag = ProcessButtonsAndSwitch();
+  activityFlag |= ProcessStates();
+
+  activityFlag |= ProcessButtonsAndSwitch();
 
   ProcessTogglesAndLEDs();
 
