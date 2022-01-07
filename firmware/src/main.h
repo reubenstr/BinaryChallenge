@@ -24,18 +24,17 @@ struct Game
     difficulty = Difficulty::Easy;
   }
 
-	State state;
-	Difficulty difficulty;
-	byte target;
-	int turn;
-	bool showDecValues;
-	int scoreTotal;
-	int score;
-	unsigned long startTimeToCapture;
-	int newGameCountDown;
+  State state;
+  Difficulty difficulty;
+  byte target;
+  int turn;
+  bool showDecValues;
+  int scoreTotal;
+  int score;
+  unsigned long startTimeToCapture;
+  int newGameCountDown;
 
   const int numTurns = 10;
-	
 };
 
 enum class Tone
@@ -49,7 +48,6 @@ enum class Tone
   EndOfGame,
 };
 
-
 const int timeMSAllowedToCapture = 5000;
 const int newGameCountDownStart = 5;
 
@@ -61,4 +59,3 @@ const uint16_t difficultyColors[] = {TFT_GREEN, TFT_YELLOW, TFT_RED};
 
 const byte difficultyBitsMin[3] = {1, 2, 4};
 const byte difficultyBitsMax[3] = {2, 4, 7};
-

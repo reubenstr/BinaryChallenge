@@ -39,6 +39,7 @@
 #include <Tone32.h>
 #include <main.h>
 #include <utilities.h>
+#include <xbm.h>
 #define PIN_TM1637_0_CLK 16
 #define PIN_TM1637_0_DIO 4
 #define PIN_TM1637_1_CLK 5
@@ -154,6 +155,11 @@ bool ProcessStates(bool newGame, bool capture, byte toggleValues)
     {
       previousDifficulty = game.difficulty;
       updateDisplay = true;
+    }
+
+    if (capture)
+    {
+      game.state = State::ResetToggles;
     }
   }
   else if (game.state == State::Play)
@@ -403,10 +409,8 @@ void setup()
   delay(150);
   tft.setRotation(3);
   delay(150);
-  tft.fillScreen(TFT_BLACK);
-
-  // TODO: show splash
-
+  //tft.fillScreen(TFT_BLACK);
+  tft.pushImage(0, 0, logoWidth, logoHeight, logo);
   PlayTone(Tone::Startup);
 
   if (sx1509.begin(SX1509_I2C_ADDRESS) == false)

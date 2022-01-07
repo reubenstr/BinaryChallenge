@@ -1,0 +1,5 @@
+CREATE IMAGE FOR TFT LCD:
+ 
+https://www.photopea.com/
+
+https://sourceforge.net/projects/lcd-image-converter/
