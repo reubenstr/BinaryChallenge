@@ -44,6 +44,20 @@
 #define PIN_BUTTON_NEW_GAME 27
 #define PIN_TOGGLE_DEC_HEX 13
 
+/*
+TFT LCD pins defined in TFT_eSPI library's User_Setup.h
+#define ILI9341_DRIVER 
+#define TFT_WIDTH  240
+#define TFT_HEIGHT 320
+#define TFT_CS 32
+#define TFT_DC 25
+#define TFT_SCLK 18
+#define TFT_MOSI 23
+#define TFT_MISO 19
+#define TFT_RST 33
+#define TOUCH_CS 26    
+*/
+
 const byte SX1509_I2C_ADDRESS = 0x3E;
 SX1509 sx1509;
 const int pins_sx1509_led[] = {0, 1, 2, 3, 4, 5, 6, 7};
@@ -264,7 +278,9 @@ void UpdateDisplay()
   }
   else if (game.state == State::ResetToggles)
   {
-    tft.fillRect(15, 101, tft.width() - 15, tft.height() - 101, TFT_BLACK);
+    tft.fillScreen(TFT_BLACK);
+
+    // tft.fillRect(15, 101, tft.width() - 15, tft.height() - 101, TFT_BLACK);
 
     sprintf(buf, "Difficulty: %s     ", difficultyText[int(game.difficulty)]);
     tft.setFreeFont(&FreeSans9pt7b);
@@ -365,24 +381,6 @@ void setup()
   // TODO: show splash
 
   PlayTone(Tone::Startup);
-
-  /*
-  tft.setCursor(10, 20);
-  tft.setTextColor(TFT_RED);
-  tft.setTextSize(3);
-  tft.println("Binary Challenge!");
-
-  int w = tft.width();
-  int h = tft.height();
-  int t = 3;
-  tft.fillRect(0, 0, w, t, TFT_CYAN);
-  tft.fillRect(w - t, 0, t, h, TFT_CYAN);
-  tft.fillRect(0, h - 3, w, t, TFT_CYAN);
-  tft.fillRect(0, 0, 0 + t, h, TFT_CYAN);
-
-  tft.fillRect(0, 50, tft.width(), t, TFT_CYAN);
-  tft.fillRect(0, 205, tft.width(), t, TFT_CYAN);
-*/
 
   if (sx1509.begin(SX1509_I2C_ADDRESS) == false)
   {
