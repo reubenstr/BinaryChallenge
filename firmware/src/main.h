@@ -7,6 +7,7 @@ enum class Difficulty
 
 enum class State
 {
+  Bootup,
   NewGameSetup,
   SelectDifficulty,
   Play,
@@ -19,7 +20,7 @@ struct Game
 {
   Game()
   {
-    state = State::NewGameSetup;
+    state = State::Bootup;
     difficulty = Difficulty::Easy;
   }
 
@@ -53,17 +54,11 @@ const int timeMSAllowedToCapture = 5000;
 const int newGameCountDownStart = 5;
 
 const int splashDelayMS = 3000;
-const int newGameDelayMS = 1000;
 
 static const char *difficultyText[6] = {"Easy", "Medium", "Hard"};
+static const char *difficultyTextUC[6] = {" EASY ", "MEDIUM", " HARD "};
+const uint16_t difficultyColors[] = {TFT_GREEN, TFT_YELLOW, TFT_RED};
 
 const byte difficultyBitsMin[3] = {1, 2, 4};
 const byte difficultyBitsMax[3] = {2, 4, 7};
 
-int countBits(unsigned char byte)
-{
-    int count = 0;
-    for(int i = 0; i < 8; i++)
-        count += (byte >> i) & 0x01;
-    return count;
-}

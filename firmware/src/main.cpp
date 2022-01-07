@@ -2,6 +2,9 @@
   PROJECT:
     Binary Challege
 
+  VERSION
+    1.0
+
   DESCRIPTION:
     Binary to DEC/HEX conversion game competing for fastest user input. 
 
@@ -35,6 +38,7 @@
 #include <TFT_eSPI.h>
 #include <Tone32.h>
 #include <main.h>
+#include <utilities.h>
 #define PIN_TM1637_0_CLK 16
 #define PIN_TM1637_0_DIO 4
 #define PIN_TM1637_1_CLK 5
@@ -70,19 +74,6 @@ TM1637Display displayHex(PIN_TM1637_0_CLK, PIN_TM1637_0_DIO);
 TM1637Display displayDec(PIN_TM1637_1_CLK, PIN_TM1637_1_DIO);
 
 Game game;
-
-byte GenerateTarget(Difficulty difficulty)
-{
-  int d = int(difficulty);
-  byte target;
-
-  do
-  {
-    target = random(0, 256);
-  } while (countBits(target) < difficultyBitsMin[d] || countBits(target) > difficultyBitsMax[d]);
-
-  return target;
-}
 
 void PlayTone(Tone t)
 {
@@ -130,31 +121,39 @@ void PlayTone(Tone t)
 
 bool ProcessStates(bool newGame, bool capture, byte toggleValues)
 {
-  static unsigned long startSelectDifficulty;
   bool updateDisplay = false;
 
   if (newGame)
+  {
     game.state = State::NewGameSetup;
-
-  if (game.state == State::NewGameSetup)
+  }
+  else if (game.state == State::Bootup)
+  {
+    // Do nothing.
+  }
+  else if (game.state == State::NewGameSetup)
   {
     game.turn = 0;
     game.scoreTotal = 0;
     game.showDecValues = !digitalRead(PIN_TOGGLE_DEC_HEX);
     game.newGameCountDown = newGameCountDownStart;
     PlayTone(Tone::NewGame);
-    startSelectDifficulty = millis();
     game.state = State::SelectDifficulty;
   }
   else if (game.state == State::SelectDifficulty)
   {
-    if (millis() - startSelectDifficulty > newGameDelayMS)
+    if (toggleValues == 1)
+      game.difficulty = Difficulty::Easy;
+    if (toggleValues == 2)
+      game.difficulty = Difficulty::Medium;
+    if (toggleValues == 4)
+      game.difficulty = Difficulty::Hard;
+
+    static Difficulty previousDifficulty;
+    if (previousDifficulty != game.difficulty)
     {
+      previousDifficulty = game.difficulty;
       updateDisplay = true;
-      if (game.newGameCountDown-- == 0)
-      {
-        game.state = State::ResetToggles;
-      }
     }
   }
   else if (game.state == State::Play)
@@ -209,7 +208,15 @@ bool ProcessStates(bool newGame, bool capture, byte toggleValues)
     {
       PlayTone(Tone::TogglesReset);
       game.score = 0;
-      game.target = GenerateTarget(game.difficulty);
+
+      int newTarget;
+      int d = int(game.difficulty);
+      do
+      {
+        newTarget = GenerateTarget(difficultyBitsMin[d], difficultyBitsMax[d]);
+      } while (game.target == newTarget);
+      game.target = newTarget;
+
       game.startTimeToCapture = millis();
       game.state = State::Play;
       return true;
@@ -217,6 +224,7 @@ bool ProcessStates(bool newGame, bool capture, byte toggleValues)
   }
   else if (game.state == State::EndOfGame)
   {
+    // Wait until new game button is pressed.
   }
 
   static State previousState;
@@ -234,13 +242,34 @@ void UpdateDisplay()
   char buf[30];
   const int yTimer = 90;
 
-  if (game.state == State::SelectDifficulty)
+  if (game.state == State::NewGameSetup)
   {
+    tft.fillScreen(TFT_BLACK);
+
     tft.setFreeFont(&FreeSans12pt7b);
     tft.setTextSize(1);
     tft.setTextDatum(TC_DATUM);
-    tft.setTextColor(TFT_RED, TFT_BLACK);
-    tft.drawString("(Touch screen)", 160, 180);
+
+    tft.setTextColor(TFT_CYAN, TFT_BLACK);
+    tft.drawString("Change difficulty using toggles:", 160, 20);
+
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawString("1 = easy", 160, 60);
+    tft.drawString("2 = meduim", 160, 80);
+    tft.drawString("4 = hard", 160, 100);
+
+    tft.setTextColor(TFT_CYAN, TFT_BLACK);
+    tft.drawString("(press capture when ready)", 160, 200);
+  }
+  else if (game.state == State::SelectDifficulty)
+  {   
+    tft.fillRect(80, 135, 160, 50, difficultyColors[int(game.difficulty)]);
+
+    tft.setFreeFont(&FreeSans18pt7b);
+    tft.setTextSize(1);
+    tft.setTextDatum(TC_DATUM);
+    tft.setTextColor(TFT_BLACK, difficultyColors[int(game.difficulty)]);
+    tft.drawString(difficultyTextUC[int(game.difficulty)], 160, 145);    
   }
   else if (game.state == State::Play)
   {
@@ -266,21 +295,19 @@ void UpdateDisplay()
       }
       else
       {
-        sprintf(buf, "%X", game.target);
+        sprintf(buf, "%02X", game.target);
       }
 
       tft.setFreeFont(&FreeSans24pt7b);
       tft.setTextSize(3);
       tft.setTextDatum(TC_DATUM);
       tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-      tft.drawString(buf, 160, 110);
+      tft.drawString(buf, 160, 115);
     }
   }
   else if (game.state == State::ResetToggles)
   {
     tft.fillScreen(TFT_BLACK);
-
-    // tft.fillRect(15, 101, tft.width() - 15, tft.height() - 101, TFT_BLACK);
 
     sprintf(buf, "Difficulty: %s     ", difficultyText[int(game.difficulty)]);
     tft.setFreeFont(&FreeSans9pt7b);
@@ -289,14 +316,14 @@ void UpdateDisplay()
     tft.setTextColor(TFT_GREEN, TFT_BLACK);
     tft.drawString(buf, 15, 15);
 
-    sprintf(buf, "Turn %u of %u     ", game.turn, game.numTurns);
+    sprintf(buf, "Turn: %u of %u     ", game.turn, game.numTurns);
     tft.setFreeFont(&FreeSans9pt7b);
     tft.setTextSize(1);
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(TFT_GREEN, TFT_BLACK);
     tft.drawString(buf, 15, 40);
 
-    sprintf(buf, "Score %u     ", game.scoreTotal);
+    sprintf(buf, "Score: %u     ", game.scoreTotal);
     tft.setFreeFont(&FreeSans9pt7b);
     tft.setTextSize(1);
     tft.setTextDatum(TL_DATUM);
@@ -384,8 +411,7 @@ void setup()
 
   if (sx1509.begin(SX1509_I2C_ADDRESS) == false)
   {
-    Serial.println("Failed to communicate. Check wiring and address of SX1509.");
-    // TODO: provide user feedback of error state.
+    Serial.println("Error: SX1509 failed to communicate.");   
   }
 
   for (int i = 0; i < 8; i++)
