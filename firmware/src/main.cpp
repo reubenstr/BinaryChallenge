@@ -16,7 +16,7 @@
     ESP32 (DOIT ESP32 DEVKIT V1)
 
   PERIPHERALS:
-	TFT LCD 2.8" w/touch - ILIXXXX (HiLetGo)
+	  TFT LCD 2.8" w/touch - ILIXXXX (HiLetGo)
     SX1509 port expander - 8 LEDs and 8 toggle switches
 
 	NOTES:
@@ -24,7 +24,7 @@
 		ecosystem such as a STM32 pending the plaform is 3.3v per TFT LCD requirement.
 
   TODO:
-	High score leaderboard - allow user to input initials via touch screen.
+	  High score leaderboard - allow user to input initials via touch screen.
 
 */
 #include <Arduino.h>
@@ -65,7 +65,7 @@ byte GenerateTarget(Difficulty difficulty)
   do
   {
     target = random(0, 256);
-  } while (countBits(target) < difficultyBitsMin[d] && countBits(target) > difficultyBitsMax[d]);
+  } while (countBits(target) < difficultyBitsMin[d] || countBits(target) > difficultyBitsMax[d]);
 
   return target;
 }
@@ -88,7 +88,7 @@ void PlayTone(Tone t)
   }
   else if (t == Tone::CaptureFail)
   {
-    tone(PIN_BUZZER, NOTE_C4, 125, 0);
+    tone(PIN_BUZZER, NOTE_C4, 50, 0);
   }
   else if (t == Tone::TogglesReset)
   {
@@ -153,8 +153,7 @@ bool ProcessStates(bool newGame, bool capture, byte toggleValues)
 
     if (millis() - game.startTimeToCapture > timeMSAllowedToCapture)
     {
-      game.score = timeMSAllowedToCapture;
-      game.scoreTotal += game.score;
+      game.score = 0;
       if (++game.turn > game.numTurns)
       {
         PlayTone(Tone::EndOfGame);
@@ -171,7 +170,7 @@ bool ProcessStates(bool newGame, bool capture, byte toggleValues)
     {
       if (toggleValues == game.target)
       {
-        game.score = millis() - game.startTimeToCapture;
+        game.score = timeMSAllowedToCapture - (millis() - game.startTimeToCapture);
         game.scoreTotal += game.score;
         if (++game.turn > game.numTurns)
         {
@@ -231,7 +230,7 @@ void UpdateDisplay()
   }
   else if (game.state == State::Play)
   {
-    int pixelPadding = 20;
+    int pixelPadding = 15;
     int timeLeft = millis() - game.startTimeToCapture;
     int halfWidth = map(timeLeft, 0, timeMSAllowedToCapture, 0, tft.width() / 2 - pixelPadding + 5);
     tft.fillRect(pixelPadding, yTimer, halfWidth, 10, TFT_RED);
@@ -245,46 +244,50 @@ void UpdateDisplay()
     {
       previousTarget = game.target;
 
+      tft.fillRect(15, 101, tft.width() - 15, tft.height() - 101, TFT_BLACK);
+
       if (game.showDecValues)
       {
-        sprintf(buf, "%3d", game.target);
+        sprintf(buf, "%d", game.target);
       }
       else
       {
-        sprintf(buf, "%3X", game.target);
+        sprintf(buf, "%X", game.target);
       }
 
       tft.setFreeFont(&FreeSans24pt7b);
       tft.setTextSize(3);
       tft.setTextDatum(TC_DATUM);
-      tft.setTextColor(TFT_RED, TFT_BLACK);
+      tft.setTextColor(TFT_YELLOW, TFT_BLACK);
       tft.drawString(buf, 160, 110);
     }
   }
   else if (game.state == State::ResetToggles)
-  {    
-    sprintf(buf, "Difficulty: %s", difficultyText[int(game.difficulty)]);
+  {
+    tft.fillRect(15, 101, tft.width() - 15, tft.height() - 101, TFT_BLACK);
+
+    sprintf(buf, "Difficulty: %s     ", difficultyText[int(game.difficulty)]);
     tft.setFreeFont(&FreeSans9pt7b);
     tft.setTextSize(1);
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(TFT_GREEN, TFT_BLACK);
     tft.drawString(buf, 15, 15);
 
-    sprintf(buf, "Turn %u of %u", game.turn, game.numTurns);
+    sprintf(buf, "Turn %u of %u     ", game.turn, game.numTurns);
     tft.setFreeFont(&FreeSans9pt7b);
     tft.setTextSize(1);
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(TFT_GREEN, TFT_BLACK);
     tft.drawString(buf, 15, 40);
 
-    sprintf(buf, "Score %u", game.scoreTotal);
+    sprintf(buf, "Score %u     ", game.scoreTotal);
     tft.setFreeFont(&FreeSans9pt7b);
     tft.setTextSize(1);
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(TFT_GREEN, TFT_BLACK);
     tft.drawString(buf, 15, 65);
 
-    sprintf(buf, "Score %4u", game.score);
+    sprintf(buf, "score = %u", game.score);
     tft.setFreeFont(&FreeSans12pt7b);
     tft.setTextSize(2);
     tft.setTextDatum(TC_DATUM);
@@ -295,10 +298,20 @@ void UpdateDisplay()
     tft.setTextSize(1);
     tft.setTextDatum(TC_DATUM);
     tft.setTextColor(TFT_RED, TFT_BLACK);
-    tft.drawString("(Set toggles to zero)", 160, 180);
+    tft.drawString("(set toggles to zero)", 160, 180);
   }
-  else if (game.state == State::HighScores)
+  else if (game.state == State::EndOfGame)
   {
+    tft.fillScreen(TFT_BLACK);
+
+    tft.setFreeFont(&FreeSans12pt7b);
+    tft.setTextSize(2);
+    tft.setTextDatum(TC_DATUM);
+    tft.setTextColor(TFT_BLUE, TFT_BLACK);
+    sprintf(buf, "%u", game.scoreTotal);
+    tft.drawString("FINAL", 160, 35);
+    tft.drawString("SCORE", 160, 100);
+    tft.drawString(buf, 160, 165);
   }
 }
 

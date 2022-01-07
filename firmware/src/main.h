@@ -20,6 +20,7 @@ struct Game
   Game()
   {
     state = State::NewGameSetup;
+    difficulty = Difficulty::Easy;
   }
 
 	State state;
