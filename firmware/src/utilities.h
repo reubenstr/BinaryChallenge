@@ -1,4 +1,4 @@
 #include <Arduino.h>
 
 int countBits(unsigned char byte);
-byte GenerateTarget(int minNumBits, int maxNumBits);
+byte GenerateTarget(byte previousTarget, int minNumBits, int maxNumBits);

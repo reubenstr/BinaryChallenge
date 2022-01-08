@@ -39,7 +39,7 @@
 #include <Tone32.h>
 #include <main.h>
 #include <utilities.h>
-#include <xbm.h>
+#include <logo.h>
 #define PIN_TM1637_0_CLK 16
 #define PIN_TM1637_0_DIO 4
 #define PIN_TM1637_1_CLK 5
@@ -159,7 +159,17 @@ bool ProcessStates(bool newGame, bool capture, byte toggleValues)
 
     if (capture)
     {
-      game.state = State::ResetToggles;
+      game.state = State::FirstResetToggles;
+    }
+  }
+  else if (game.state == State::FirstResetToggles)
+  {
+    if (toggleValues == 0)
+    {
+      game.score = 0;
+      game.target = GenerateTarget(0, difficultyBitsMin[int(game.difficulty)], difficultyBitsMax[int(game.difficulty)]);
+      game.startTimeToCapture = millis();
+      game.state = State::Play;
     }
   }
   else if (game.state == State::Play)
@@ -214,15 +224,7 @@ bool ProcessStates(bool newGame, bool capture, byte toggleValues)
     {
       PlayTone(Tone::TogglesReset);
       game.score = 0;
-
-      int newTarget;
-      int d = int(game.difficulty);
-      do
-      {
-        newTarget = GenerateTarget(difficultyBitsMin[d], difficultyBitsMax[d]);
-      } while (game.target == newTarget);
-      game.target = newTarget;
-
+      game.target = GenerateTarget(game.target, difficultyBitsMin[int(game.difficulty)], difficultyBitsMax[int(game.difficulty)]);
       game.startTimeToCapture = millis();
       game.state = State::Play;
       return true;
@@ -255,27 +257,37 @@ void UpdateDisplay()
     tft.setFreeFont(&FreeSans12pt7b);
     tft.setTextSize(1);
     tft.setTextDatum(TC_DATUM);
-
     tft.setTextColor(TFT_CYAN, TFT_BLACK);
     tft.drawString("Change difficulty using toggles:", 160, 20);
 
+    tft.setTextDatum(TL_DATUM);
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.drawString("1 = easy", 160, 60);
-    tft.drawString("2 = meduim", 160, 80);
-    tft.drawString("4 = hard", 160, 100);
+    tft.drawString("1 = easy", 90, 50);
+    tft.drawString("2 = meduim", 90, 75);
+    tft.drawString("4 = hard", 90, 100);
 
+    tft.setTextDatum(TC_DATUM);
     tft.setTextColor(TFT_CYAN, TFT_BLACK);
     tft.drawString("(press capture when ready)", 160, 200);
   }
   else if (game.state == State::SelectDifficulty)
-  {   
+  {
     tft.fillRect(80, 135, 160, 50, difficultyColors[int(game.difficulty)]);
 
     tft.setFreeFont(&FreeSans18pt7b);
     tft.setTextSize(1);
     tft.setTextDatum(TC_DATUM);
     tft.setTextColor(TFT_BLACK, difficultyColors[int(game.difficulty)]);
-    tft.drawString(difficultyTextUC[int(game.difficulty)], 160, 145);    
+    tft.drawString(difficultyTextUC[int(game.difficulty)], 160, 145);
+  }
+  else if (game.state == State::FirstResetToggles)
+  {
+    tft.fillScreen(TFT_BLACK);
+    tft.setFreeFont(&FreeSans12pt7b);
+    tft.setTextSize(1);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(TFT_RED, TFT_BLACK);
+    tft.drawString("(set toggles to zero)", 160, 120);
   }
   else if (game.state == State::Play)
   {
@@ -415,7 +427,7 @@ void setup()
 
   if (sx1509.begin(SX1509_I2C_ADDRESS) == false)
   {
-    Serial.println("Error: SX1509 failed to communicate.");   
+    Serial.println("Error: SX1509 failed to communicate.");
   }
 
   for (int i = 0; i < 8; i++)
@@ -426,8 +438,8 @@ void setup()
     sx1509.pinMode(pins_sx1509_toggle[i], INPUT_PULLUP);
   }
 
-  displayDec.setBrightness(0x03);
-  displayHex.setBrightness(0x03);
+  displayDec.setBrightness(0x02);
+  displayHex.setBrightness(0x02);
 }
 
 void loop()

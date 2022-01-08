@@ -8,8 +8,9 @@ enum class Difficulty
 enum class State
 {
   Bootup,
-  NewGameSetup,
+  NewGameSetup,  
   SelectDifficulty,
+  FirstResetToggles,
   Play,
   ResetToggles,
   EndOfGame,
