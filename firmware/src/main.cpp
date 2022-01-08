@@ -120,137 +120,15 @@ void PlayTone(Tone t)
   noTone(PIN_BUZZER, 0);
 }
 
-bool ProcessStates(bool newGame, bool capture, byte toggleValues)
-{
-  bool updateDisplay = false;
-
-  if (newGame)
-  {
-    game.state = State::NewGameSetup;
-  }
-  else if (game.state == State::Bootup)
-  {
-    // Do nothing.
-  }
-  else if (game.state == State::NewGameSetup)
-  {
-    game.turn = 0;
-    game.scoreTotal = 0;
-    game.showDecValues = !digitalRead(PIN_TOGGLE_DEC_HEX);
-    game.newGameCountDown = newGameCountDownStart;
-    PlayTone(Tone::NewGame);
-    game.state = State::SelectDifficulty;
-  }
-  else if (game.state == State::SelectDifficulty)
-  {
-    if (toggleValues == 1)
-      game.difficulty = Difficulty::Easy;
-    if (toggleValues == 2)
-      game.difficulty = Difficulty::Medium;
-    if (toggleValues == 4)
-      game.difficulty = Difficulty::Hard;
-
-    static Difficulty previousDifficulty;
-    if (previousDifficulty != game.difficulty)
-    {
-      previousDifficulty = game.difficulty;
-      updateDisplay = true;
-    }
-
-    if (capture)
-    {
-      game.state = State::FirstResetToggles;
-    }
-  }
-  else if (game.state == State::FirstResetToggles)
-  {
-    if (toggleValues == 0)
-    {
-      game.score = 0;
-      game.target = GenerateTarget(0, difficultyBitsMin[int(game.difficulty)], difficultyBitsMax[int(game.difficulty)]);
-      game.startTimeToCapture = millis();
-      game.state = State::Play;
-    }
-  }
-  else if (game.state == State::Play)
-  {
-    static unsigned long startGraphicRefresh;
-    if (millis() - startGraphicRefresh > 35)
-    {
-      updateDisplay = true;
-    }
-
-    if (millis() - game.startTimeToCapture > timeMSAllowedToCapture)
-    {
-      game.score = 0;
-      if (++game.turn > game.numTurns)
-      {
-        PlayTone(Tone::EndOfGame);
-        game.state = State::EndOfGame;
-      }
-      else
-      {
-        PlayTone(Tone::CaptureFail);
-        game.state = State::ResetToggles;
-      }
-    }
-
-    if (capture)
-    {
-      if (toggleValues == game.target)
-      {
-        game.score = timeMSAllowedToCapture - (millis() - game.startTimeToCapture);
-        game.scoreTotal += game.score;
-        if (++game.turn > game.numTurns)
-        {
-          PlayTone(Tone::EndOfGame);
-          game.state = State::EndOfGame;
-        }
-        else
-        {
-          PlayTone(Tone::CaptureSuccess);
-          game.state = State::ResetToggles;
-        }
-      }
-      else
-      {
-        PlayTone(Tone::CaptureFail);
-      }
-    }
-  }
-  else if (game.state == State::ResetToggles)
-  {
-    if (toggleValues == 0)
-    {
-      PlayTone(Tone::TogglesReset);
-      game.score = 0;
-      game.target = GenerateTarget(game.target, difficultyBitsMin[int(game.difficulty)], difficultyBitsMax[int(game.difficulty)]);
-      game.startTimeToCapture = millis();
-      game.state = State::Play;
-      return true;
-    }
-  }
-  else if (game.state == State::EndOfGame)
-  {
-    // Wait until new game button is pressed.
-  }
-
-  static State previousState;
-  if (previousState != game.state)
-  {
-    previousState = game.state;
-    updateDisplay = true;
-  }
-
-  return updateDisplay;
-}
-
-void UpdateDisplay()
+void UpdateDisplay(Display display)
 {
   char buf[30];
   const int yTimer = 90;
-
-  if (game.state == State::NewGameSetup)
+  if (display == Display::Splash)
+  {
+    tft.pushImage(0, 0, logoWidth, logoHeight, logo);
+  }
+  else if (display == Display::SelectDifficulty)
   {
     tft.fillScreen(TFT_BLACK);
 
@@ -270,17 +148,16 @@ void UpdateDisplay()
     tft.setTextColor(TFT_CYAN, TFT_BLACK);
     tft.drawString("(press capture when ready)", 160, 200);
   }
-  else if (game.state == State::SelectDifficulty)
+  else if (display == Display::UpdateDifficulty)
   {
     tft.fillRect(80, 135, 160, 50, difficultyColors[int(game.difficulty)]);
-
     tft.setFreeFont(&FreeSans18pt7b);
     tft.setTextSize(1);
     tft.setTextDatum(TC_DATUM);
     tft.setTextColor(TFT_BLACK, difficultyColors[int(game.difficulty)]);
     tft.drawString(difficultyTextUC[int(game.difficulty)], 160, 145);
   }
-  else if (game.state == State::FirstResetToggles)
+  else if (display == Display::ResetTogglesOnly)
   {
     tft.fillScreen(TFT_BLACK);
     tft.setFreeFont(&FreeSans12pt7b);
@@ -289,41 +166,42 @@ void UpdateDisplay()
     tft.setTextColor(TFT_RED, TFT_BLACK);
     tft.drawString("(set toggles to zero)", 160, 120);
   }
-  else if (game.state == State::Play)
+  else if (display == Display::Target)
   {
-    int pixelPadding = 15;
-    int timeLeft = millis() - game.startTimeToCapture;
-    int halfWidth = map(timeLeft, 0, timeMSAllowedToCapture, 0, tft.width() / 2 - pixelPadding + 5);
-    tft.fillRect(pixelPadding, yTimer, halfWidth, 10, TFT_RED);
+    tft.fillRect(15, 101, tft.width() - 15, tft.height() - 101, TFT_BLACK);
 
-    tft.fillRect(halfWidth + pixelPadding, yTimer, tft.width() - pixelPadding - halfWidth * 2 - pixelPadding, 10, TFT_CYAN);
-
-    tft.fillRect(tft.width() - pixelPadding - halfWidth, yTimer, halfWidth, 10, TFT_RED);
-
-    static byte previousTarget;
-    if (previousTarget != game.target)
+    if (game.showDecValues)
     {
-      previousTarget = game.target;
+      sprintf(buf, "%d", game.target);
+    }
+    else
+    {
+      sprintf(buf, "%02X", game.target);
+    }
 
-      tft.fillRect(15, 101, tft.width() - 15, tft.height() - 101, TFT_BLACK);
+    tft.setFreeFont(&FreeSans24pt7b);
+    tft.setTextSize(3);
+    tft.setTextDatum(TC_DATUM);
+    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+    tft.drawString(buf, 160, 115);
+  }
+  else if (display == Display::Countdown)
+  {
+    static unsigned long start;
+    if (millis() - start > 35)
+    {
+      start = millis();
+      int pixelPadding = 15;
+      int timeLeft = millis() - game.startTimeToCapture;
+      int halfWidth = map(timeLeft, 0, timeMSAllowedToCapture, 0, tft.width() / 2 - pixelPadding + 5);
+      tft.fillRect(pixelPadding, yTimer, halfWidth, 10, TFT_RED);
 
-      if (game.showDecValues)
-      {
-        sprintf(buf, "%d", game.target);
-      }
-      else
-      {
-        sprintf(buf, "%02X", game.target);
-      }
+      tft.fillRect(halfWidth + pixelPadding, yTimer, tft.width() - pixelPadding - halfWidth * 2 - pixelPadding, 10, TFT_CYAN);
 
-      tft.setFreeFont(&FreeSans24pt7b);
-      tft.setTextSize(3);
-      tft.setTextDatum(TC_DATUM);
-      tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-      tft.drawString(buf, 160, 115);
+      tft.fillRect(tft.width() - pixelPadding - halfWidth, yTimer, halfWidth, 10, TFT_RED);
     }
   }
-  else if (game.state == State::ResetToggles)
+  else if (display == Display::GameInfo)
   {
     tft.fillScreen(TFT_BLACK);
 
@@ -347,7 +225,9 @@ void UpdateDisplay()
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(TFT_GREEN, TFT_BLACK);
     tft.drawString(buf, 15, 65);
-
+  }
+  else if (display == Display::ResetTogglesWithScore)
+  {
     sprintf(buf, "score = %u", game.score);
     tft.setFreeFont(&FreeSans12pt7b);
     tft.setTextSize(2);
@@ -361,7 +241,7 @@ void UpdateDisplay()
     tft.setTextColor(TFT_RED, TFT_BLACK);
     tft.drawString("(set toggles to zero)", 160, 180);
   }
-  else if (game.state == State::EndOfGame)
+  else if (display == Display::FinalScore)
   {
     tft.fillScreen(TFT_BLACK);
 
@@ -374,6 +254,113 @@ void UpdateDisplay()
     tft.drawString("SCORE", 160, 100);
     tft.drawString(buf, 160, 165);
   }
+}
+
+void ProcessStates(bool newGame, bool capture, byte toggleValues)
+{
+  if (newGame)
+  {
+    game.state = State::NewGameSetup;
+  }
+  else if (game.state == State::Hold)
+  {
+    // Do nothing until new game.
+  }
+  else if (game.state == State::NewGameSetup)
+  {
+    game.turn = 1;
+    game.scoreTotal = 0;
+    game.showDecValues = !digitalRead(PIN_TOGGLE_DEC_HEX);
+    game.newGameCountDown = newGameCountDownStart;
+    PlayTone(Tone::NewGame);
+    UpdateDisplay(Display::SelectDifficulty);
+    UpdateDisplay(Display::UpdateDifficulty);
+    game.state = State::SelectDifficulty;
+  }
+  else if (game.state == State::SelectDifficulty)
+  {
+    if (toggleValues == 1)
+      game.difficulty = Difficulty::Easy;
+    if (toggleValues == 2)
+      game.difficulty = Difficulty::Medium;
+    if (toggleValues == 4)
+      game.difficulty = Difficulty::Hard;
+
+    static Difficulty previousDifficulty = Difficulty::Hard;
+    if (previousDifficulty != game.difficulty)
+    {
+      previousDifficulty = game.difficulty;
+
+      UpdateDisplay(Display::UpdateDifficulty);
+    }
+
+    if (capture)
+    {
+      game.state = State::ResetToggles;
+      UpdateDisplay(Display::ResetTogglesOnly);
+    }
+  } 
+  else if (game.state == State::Play)
+  {
+    UpdateDisplay(Display::Countdown);
+
+    if (millis() - game.startTimeToCapture > timeMSAllowedToCapture)
+    {
+      game.score = 0;
+      if (++game.turn > game.numTurns)
+      {
+        PlayTone(Tone::EndOfGame);
+        UpdateDisplay(Display::FinalScore);
+        game.state = State::EndOfGame;
+      }
+      else
+      {
+        PlayTone(Tone::CaptureFail);
+        UpdateDisplay(Display::GameInfo);
+        UpdateDisplay(Display::ResetTogglesWithScore);
+        game.state = State::ResetToggles;
+      }
+    }
+
+    if (capture)
+    {
+      if (toggleValues == game.target)
+      {
+        game.score = timeMSAllowedToCapture - (millis() - game.startTimeToCapture);
+        game.scoreTotal += game.score;
+        if (++game.turn > game.numTurns)
+        {
+          PlayTone(Tone::EndOfGame);
+          UpdateDisplay(Display::FinalScore);
+          game.state = State::EndOfGame;
+        }
+        else
+        {
+          PlayTone(Tone::CaptureSuccess);
+          UpdateDisplay(Display::GameInfo);
+          UpdateDisplay(Display::ResetTogglesWithScore);
+          game.state = State::ResetToggles;
+        }
+      }
+      else
+      {
+        PlayTone(Tone::CaptureFail);
+      }
+    }
+  }
+  else if (game.state == State::ResetToggles)
+  {
+    if (toggleValues == 0)
+    {
+      PlayTone(Tone::TogglesReset);
+      game.score = 0;
+      game.target = GenerateTarget(game.target, difficultyBitsMin[int(game.difficulty)], difficultyBitsMax[int(game.difficulty)]);
+      game.startTimeToCapture = millis();
+      UpdateDisplay(Display::GameInfo);
+      UpdateDisplay(Display::Target);
+      game.state = State::Play;
+    }
+  } 
 }
 
 byte GetToggleValues()
@@ -421,8 +408,7 @@ void setup()
   delay(150);
   tft.setRotation(3);
   delay(150);
-  //tft.fillScreen(TFT_BLACK);
-  tft.pushImage(0, 0, logoWidth, logoHeight, logo);
+  UpdateDisplay(Display::Splash);
   PlayTone(Tone::Startup);
 
   if (sx1509.begin(SX1509_I2C_ADDRESS) == false)
@@ -452,8 +438,5 @@ void loop()
   SetLEDs(toggleValues, game.state != State::ResetToggles);
   SetSegmentDisplays(toggleValues);
 
-  bool updateDisplay = ProcessStates(newGame, capture, toggleValues);
-
-  if (updateDisplay)
-    UpdateDisplay();
+  ProcessStates(newGame, capture, toggleValues);
 }

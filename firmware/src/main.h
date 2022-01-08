@@ -7,10 +7,9 @@ enum class Difficulty
 
 enum class State
 {
-  Bootup,
+  Hold,
   NewGameSetup,  
   SelectDifficulty,
-  FirstResetToggles,
   Play,
   ResetToggles,
   EndOfGame,
@@ -21,7 +20,7 @@ struct Game
 {
   Game()
   {
-    state = State::Bootup;
+    state = State::Hold;
     difficulty = Difficulty::Easy;
   }
 
@@ -47,6 +46,19 @@ enum class Tone
   OutofTime,
   TogglesReset,
   EndOfGame,
+};
+
+enum class Display
+{
+  Splash, 
+  SelectDifficulty,
+  UpdateDifficulty,
+  GameInfo,
+  Target,
+  Countdown,
+  ResetTogglesOnly,
+  ResetTogglesWithScore,
+  FinalScore
 };
 
 const int timeMSAllowedToCapture = 5000;
