@@ -39,7 +39,7 @@
 #include <Tone32.h>
 #include <main.h>
 #include <utilities.h>
-#include <logo.h>
+#include <splash.h>
 #define PIN_TM1637_0_CLK 16
 #define PIN_TM1637_0_DIO 4
 #define PIN_TM1637_1_CLK 5
@@ -126,7 +126,7 @@ void UpdateDisplay(Display display)
   const int yTimer = 90;
   if (display == Display::Splash)
   {
-    tft.pushImage(0, 0, logoWidth, logoHeight, logo);
+    tft.pushImage(0, 0, splashWidth, splashHeight, splash);
   }
   else if (display == Display::SelectDifficulty)
   {
