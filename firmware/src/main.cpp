@@ -1,20 +1,14 @@
 /*
-  PROJECT:
     Binary Challege
+    Reuben Strangelove
+    www.metaphasiclabs.com
 
-  VERSION
+    January 2021
     1.0
 
   DESCRIPTION:
     Binary to DEC/HEX conversion game competing for fastest user input. 
-
-  DATE:
-    January 2021
-
-  AUTHOR:
-    Reuben Strangelove
-    www.metaphasiclabs.com
-
+   
   MCU:
     ESP32 (DOIT ESP32 DEVKIT V1)
 
@@ -25,6 +19,9 @@
 	NOTES:
 		Source code is hardware agnostic and should support other MCU's in the Arduino
 		ecosystem such as a STM32 pending the plaform is 3.3v per TFT LCD requirement.
+
+  KNOWN ISSUES:
+    Very rarely communication between the MCU and SX1509 fails and wrong GPIO states are transmitted.
 
   TODO:
 	  High score leaderboard - allow user to input initials via touch screen.

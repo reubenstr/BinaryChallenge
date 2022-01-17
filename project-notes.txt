@@ -1,20 +1,25 @@
 3D PRINTING:
-Most parts can be printed with PLA or ABS at 0.2mm layer height, 20% infill.
-The frame needs to be scaled to compensate for plastic shrink.
-Success was found using Hatchbox PLA by scaling the STL by 100.35% in the slicer. 
+	Most parts can be printed with PLA or ABS at 0.2mm layer height, 20% infill.
+	The frame needs to be scaled to compensate for plastic shrink.
+	Success was found using Hatchbox PLA by scaling the STL by 100.35% in the slicer.
+	
+FABRICATION:	
+	Although the front and back plates are designed to be fabricated on a laser engraver,
+	a 3D printed version should work. In 3D CAD raise the text and line features for easier
+	painting with a small enamel coated sponge.
 
 CREATE IMAGE FOR TFT LCD:
-Create a 320px by 240px image in any graphics software.
-Suggested (free, online): https://www.photopea.com/
-Use LCD Image Converter to convert the image (.PNG) into a byte array.
-https://sourceforge.net/projects/lcd-image-converter/
-See logo.h header comments for program settings.
+	Create a 320px by 240px image in any graphics software.
+	Suggested (free, online): https://www.photopea.com/
+	Use LCD Image Converter to convert the image (.PNG) into a byte array.
+	https://sourceforge.net/projects/lcd-image-converter/
+	See logo.h header comments for program settings.
 
 ALTERNATIVE MCU:
-The ESP32 was selected for 3.3v logic levels required by the TFT LCD
-and quick spin up time. Wi-Fi may be nice if adding multiplayer support.
-A cost effective option (untested) is using a STM32 (Blue Pill).
-A RPI2040 was tested, but at the time of the test the Arduino framework
-did not appear to fully suppor the RPI2040 and caused compilation issues.
-An Arduino Nano (ATmega328) does not have the correct logic levels nor 
-is there enough memory to support the splash screen logo and extra fonts.
+	The ESP32 was selected for 3.3v logic levels required by the TFT LCD
+	and quick spin up time. Wi-Fi may be nice if adding multiplayer support.
+	A cost effective option (untested) is using a STM32 (Blue Pill).
+	A RPI2040 was tested, but at the time of the test the Arduino framework
+	did not appear to fully suppor the RPI2040 and caused compilation issues.
+	An Arduino Nano (ATmega328) does not have the correct logic levels nor 
+	is there enough memory to support the splash screen logo and extra fonts.
